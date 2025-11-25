@@ -1,444 +1,471 @@
+package DormEase;
+// DormEase.java - Main Class
 import java.util.*;
 
-// ===== Abstract Class for Abstraction and Inheritance =====
-abstract class Person {
-    protected String name;
-    protected int id;
-
-    public Person(String name, int id) {
-        this.name = name;
-        this.id = id;
-    }
-
-    public abstract void viewDashboard(); // Polymorphic method for role-specific dashboards
-}
-
-// ===== Abstract Class for Abstraction =====
-abstract class Request {
-    protected String description;
-    protected boolean isProcessed;
-    protected Person requester;
-
-    public Request(String description, Person requester) {
-        this.description = description;
-        this.requester = requester;
-        this.isProcessed = false;
-    }
-
-    public abstract void processRequest(); // Abstract method for processing requests
-
-    public String getDescription() { return description; }
-    public boolean isProcessed() { return isProcessed; }
-    public void setProcessed(boolean processed) { this.isProcessed = processed; }
-    public Person getRequester() { return requester; }
-}
-
-// ===== Concrete Request Classes (Polymorphism via processRequest) =====
-class CleaningRequest extends Request {
-    public CleaningRequest(String description, Person requester) {
-        super(description, requester);
-    }
-
-    @Override
-    public void processRequest() {
-        System.out.println("Cleaning request processed: " + description);
-        setProcessed(true);
-    }
-}
-
-class RepairRequest extends Request {
-    public RepairRequest(String description, Person requester) {
-        super(description, requester);
-    }
-
-    @Override
-    public void processRequest() {
-        System.out.println("Repair request processed: " + description);
-        setProcessed(true);
-    }
-}
-
-// ===== Resident Class (Inheritance + Encapsulation) =====
-class Resident extends Person {
-    private Room room;
-    private double balance;
-
-    public Resident(String name, int id) {
-        super(name, id);
-        this.balance = 0;
-    }
-
-    public void deposit(double amount) {
-        if (amount > 0) {
-            balance += amount;
-            System.out.println("Added PHP " + String.format("%.2f", amount) + " to " + name + "'s balance.");
-        } else {
-            System.out.println("Invalid amount. Please enter a positive value.");
-        }
-    }
-
-    public Room getRoom() { return room; }
-    public void setRoom(Room room) { this.room = room; }
-    public double getBalance() { return balance; }
-
-    @Override
-    public void viewDashboard() {
-        System.out.println("=====================================");
-        System.out.println("         Resident Dashboard          ");
-        System.out.println("=====================================");
-        System.out.println("Name: " + name + " | ID: " + id);
-        System.out.println("Room: " + (room != null ? room.getRoomNumber() : "None"));
-        System.out.println("Balance: PHP " + String.format("%.2f", balance));
-        System.out.println("=====================================");
-    }
-}
-
-// ===== MaintenanceStaff Class (Inheritance + Encapsulation) =====
-class MaintenanceStaff extends Person {
-    public MaintenanceStaff(String name, int id) {
-        super(name, id);
-    }
-
-    public void processRequest(Request request) {
-        if (!request.isProcessed()) {
-            request.processRequest();
-        } else {
-            System.out.println("Request already processed.");
-        }
-    }
-
-    @Override
-    public void viewDashboard() {
-        System.out.println("=====================================");
-        System.out.println("    Maintenance Staff Dashboard     ");
-        System.out.println("=====================================");
-        System.out.println("Name: " + name + " | ID: " + id);
-        System.out.println("Role: Handle maintenance requests.");
-        System.out.println("=====================================");
-    }
-}
-
-// ===== DormManager Class (Inheritance + Encapsulation) =====
-class DormManager extends Person {
-    public DormManager(String name, int id) {
-        super(name, id);
-    }
-
-    public void assignRoom(Resident resident, Room room) {
-        if (resident.getRoom() != null) {
-            System.out.println("Resident " + resident.name + " already has a room assigned.");
-        } else if (room.isOccupied()) {
-            System.out.println("Room " + room.getRoomNumber() + " is already occupied.");
-        } else {
-            resident.setRoom(room);
-            room.setOccupied(true);
-            System.out.println("Assigned Room " + room.getRoomNumber() + " to " + resident.name + ".");
-        }
-    }
-
-    public void releaseRoom(Resident resident) {
-        if (resident.getRoom() != null) {
-            Room room = resident.getRoom();
-            room.setOccupied(false);
-            resident.setRoom(null);
-            System.out.println("Room " + room.getRoomNumber() + " released from " + resident.name + ".");
-        } else {
-            System.out.println("No room assigned to this resident.");
-        }
-    }
-
-    @Override
-    public void viewDashboard() {
-        System.out.println("=====================================");
-        System.out.println("       Dorm Manager Dashboard        ");
-        System.out.println("=====================================");
-        System.out.println("Name: " + name + " | ID: " + id);
-        System.out.println("Role: Manage room assignments and system overview.");
-        System.out.println("=====================================");
-    }
-}
-
-// ===== Room Class (Encapsulation) =====
-class Room {
-    private String roomNumber;
-    private boolean occupied;
-
-    public Room(String roomNumber) {
-        this.roomNumber = roomNumber;
-        this.occupied = false;
-    }
-
-    public String getRoomNumber() { return roomNumber; }
-    public boolean isOccupied() { return occupied; }
-    public void setOccupied(boolean occupied) { this.occupied = occupied; }
-}
-
-// ===== Main System Class =====
 public class DormEase {
+    private static Scanner sc = new Scanner(System.in);
+    private static HashMap<Integer, Resident> residentsMap = new HashMap<>();
+    private static HashMap<String, Room> roomsMap = new HashMap<>();
+    private static ArrayList<Request> requests = new ArrayList<>();
+    private static Person currentUser = null;
+    private static int nextResidentId = 1;
+
     public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        ArrayList<Resident> residents = new ArrayList<>();
-        ArrayList<Room> rooms = new ArrayList<>();
-        ArrayList<Request> requests = new ArrayList<>();
-        Person currentUser = null; // Track the currently logged-in user
+        initializeSystem();
+        displayWelcome();
 
-        // Preloaded sample rooms
-        rooms.add(new Room("A101"));
-        rooms.add(new Room("A102"));
-        rooms.add(new Room("B201"));
-        rooms.add(new Room("B202"));
+        boolean running = true;
+        while (running) {
+            displayMainMenu();
+            
+            try {
+                int choice = sc.nextInt();
+                sc.nextLine(); // clear buffer
 
-        // Welcome message with simple ASCII art
+                switch (choice) {
+                    case 0: handleLogin(); break;
+                    case 1: handleRegisterResident(); break;
+                    case 2: handleViewAllResidents(); break;
+                    case 3: handleAssignRoom(); break;
+                    case 4: handleReleaseRoom(); break;
+                    case 5: handleDepositPayment(); break;
+                    case 6: handleSubmitRequest(); break;
+                    case 7: handleProcessRequest(); break;
+                    case 8: handleViewDashboard(); break;
+                    case 9: handleViewPaymentHistory(); break;
+                    case 10: handleSearchResident(); break;
+                    case 11: handleViewRoomStatistics(); break;
+                    case 12: handleViewRequestHistory(); break;
+                    case 13: handleSaveData(); break;
+                    case 14: handleLoadData(); break;
+                    case 15: 
+                        running = false;
+                        displayGoodbye();
+                        break;
+                    default:
+                        System.out.println("Invalid choice. Please try again.");
+                }
+
+            } catch (InputMismatchException e) {
+                System.out.println("Invalid input. Please enter a number.");
+                sc.nextLine();
+            } catch (Exception e) {
+                System.out.println("An error occurred: " + e.getMessage());
+                sc.nextLine();
+            }
+        }
+
+        sc.close();
+    }
+
+    private static void initializeSystem() {
+        // Preload sample rooms
+        roomsMap.put("A101", new Room("A101", "Single", 5000, 1));
+        roomsMap.put("A102", new Room("A102", "Single", 5000, 1));
+        roomsMap.put("B201", new Room("B201", "Double", 7500, 2));
+        roomsMap.put("B202", new Room("B202", "Double", 7500, 2));
+        roomsMap.put("C301", new Room("C301", "Suite", 12000, 4));
+    }
+
+    private static void displayWelcome() {
         System.out.println("=====================================");
         System.out.println("         Welcome to DormEase         ");
         System.out.println("   Dormitory Management System       ");
         System.out.println("=====================================");
         System.out.println("Note: You must login to access role-specific features.");
         System.out.println("=====================================");
+    }
 
-        boolean running = true;
-        while (running) {
-            System.out.println("\n=====================================");
-            System.out.println("           DormEase Menu             ");
-            System.out.println("=====================================");
-            System.out.println("  0. Login");
-            System.out.println("  1. Register Resident");
-            System.out.println("  2. View All Residents");
-            System.out.println("  3. Assign Room (Dorm Manager)");
-            System.out.println("  4. Release Room (Dorm Manager)");
-            System.out.println("  5. Deposit Payment (Resident)");
-            System.out.println("  6. Submit Maintenance Request (Resident)");
-            System.out.println("  7. Process Maintenance Request (Maintenance Staff)");
-            System.out.println("  8. View Dashboard");
-            System.out.println("  9. Exit");
-            System.out.println("=====================================");
-            System.out.print("Enter your choice: ");
+    private static void displayMainMenu() {
+        System.out.println("\n=====================================");
+        System.out.println("           DormEase Menu             ");
+        System.out.println("=====================================");
+        System.out.println("  0. Login");
+        System.out.println("  1. Register Resident");
+        System.out.println("  2. View All Residents");
+        System.out.println("  3. Assign Room (Manager)");
+        System.out.println("  4. Release Room (Manager)");
+        System.out.println("  5. Deposit Payment (Resident)");
+        System.out.println("  6. Submit Maintenance Request (Resident)");
+        System.out.println("  7. Process Maintenance Request (Staff)");
+        System.out.println("  8. View Dashboard");
+        System.out.println("  9. View Payment History (Resident)");
+        System.out.println(" 10. Search Resident");
+        System.out.println(" 11. View Room Statistics");
+        System.out.println(" 12. View Request History");
+        System.out.println(" 13. Save Data");
+        System.out.println(" 14. Load Data");
+        System.out.println(" 15. Exit");
+        System.out.println("=====================================");
+        if (currentUser != null) {
+            System.out.println("Logged in as: " + currentUser.getName() + 
+                " (" + currentUser.getClass().getSimpleName() + ")");
+        }
+        System.out.print("Enter your choice: ");
+    }
 
-            try {
-                int choice = sc.nextInt();
-                sc.nextLine(); // clear buffer
+    private static void handleLogin() {
+        System.out.println("\n=====================================");
+        System.out.println("              Login Menu             ");
+        System.out.println("=====================================");
+        System.out.println("  1. Dorm Manager");
+        System.out.println("  2. Maintenance Staff");
+        System.out.println("  3. Resident");
+        System.out.println("=====================================");
+        System.out.print("Select role to login: ");
+        
+        int roleChoice = sc.nextInt();
+        sc.nextLine();
+        
+        String loginName = getValidStringInput("Enter Name: ");
+        System.out.print("Enter ID: ");
+        int loginId = sc.nextInt();
+        sc.nextLine();
 
-                switch (choice) {
-                    case 0: // Login
-                        System.out.println("\n=====================================");
-                        System.out.println("              Login Menu             ");
-                        System.out.println("=====================================");
-                        System.out.println("  1. Dorm Manager");
-                        System.out.println("  2. Maintenance Staff");
-                        System.out.println("  3. Resident");
-                        System.out.println("=====================================");
-                        System.out.print("Select role to login: ");
-                        int roleChoice = sc.nextInt();
-                        sc.nextLine(); // clear buffer
-                        System.out.print("Enter Name: ");
-                        String loginName = sc.nextLine().trim();
-                        System.out.print("Enter ID: ");
-                        int loginId = sc.nextInt();
-                        sc.nextLine(); // clear buffer
-                        if (roleChoice == 1) {
-                            currentUser = new DormManager(loginName, loginId);
-                            System.out.println("Logged in as Dorm Manager: " + loginName);
-                        } else if (roleChoice == 2) {
-                            currentUser = new MaintenanceStaff(loginName, loginId);
-                            System.out.println("Logged in as Maintenance Staff: " + loginName);
-                        } else if (roleChoice == 3) {
-                            if (loginId < 1 || loginId > residents.size()) {
-                                System.out.println("Invalid Resident ID or not registered.");
-                                currentUser = null;
-                            } else {
-                                currentUser = residents.get(loginId - 1);
-                                System.out.println("Logged in as Resident: " + loginName);
-                            }
-                        } else {
-                            System.out.println("Invalid role choice.");
-                            currentUser = null;
-                        }
-                        break;
+        if (roleChoice == 1) {
+            currentUser = new DormManager(loginName, loginId);
+            System.out.println("Logged in as Dorm Manager: " + loginName);
+        } else if (roleChoice == 2) {
+            currentUser = new MaintenanceStaff(loginName, loginId);
+            System.out.println("Logged in as Maintenance Staff: " + loginName);
+        } else if (roleChoice == 3) {
+            Resident resident = residentsMap.get(loginId);
+            if (resident != null && resident.getName().equalsIgnoreCase(loginName)) {
+                currentUser = resident;
+                System.out.println("Logged in as Resident: " + loginName);
+            } else {
+                System.out.println("Invalid credentials or resident not found.");
+                currentUser = null;
+            }
+        } else {
+            System.out.println("Invalid role choice.");
+            currentUser = null;
+        }
+    }
 
-                    case 1:
-                        System.out.println("\n=====================================");
-                        System.out.println("         Register Resident           ");
-                        System.out.println("=====================================");
-                        System.out.print("Enter Resident Name: ");
-                        String rName = sc.nextLine().trim();
-                        if (rName.isEmpty()) {
-                            System.out.println("Resident name cannot be empty.");
-                        } else {
-                            Resident newResident = new Resident(rName, residents.size() + 1);
-                            residents.add(newResident);
-                            System.out.println("Resident registered successfully! ID: " + newResident.id);
-                        }
-                        break;
+    private static void handleRegisterResident() {
+        System.out.println("\n=====================================");
+        System.out.println("         Register Resident           ");
+        System.out.println("=====================================");
+        
+        String rName = getValidStringInput("Enter Resident Name: ");
+        Resident newResident = new Resident(rName, nextResidentId);
+        residentsMap.put(nextResidentId, newResident);
+        System.out.println("Resident registered successfully! ID: " + nextResidentId);
+        nextResidentId++;
+    }
 
-                    case 2:
-                        System.out.println("\n=====================================");
-                        System.out.println("         All Residents               ");
-                        System.out.println("=====================================");
-                        if (residents.isEmpty()) {
-                            System.out.println("No residents registered yet.");
-                        } else {
-                            System.out.printf("%-5s %-20s %-10s %-10s%n", "ID", "Name", "Room", "Balance");
-                            System.out.println("-------------------------------------");
-                            for (Resident r : residents) {
-                                System.out.printf("%-5d %-20s %-10s PHP %-10.2f%n",
-                                        r.id, r.name,
-                                        (r.getRoom() != null ? r.getRoom().getRoomNumber() : "None"),
-                                        r.getBalance());
-                            }
-                        }
-                        System.out.println("=====================================");
-                        break;
+    private static void handleViewAllResidents() {
+        System.out.println("\n=====================================");
+        System.out.println("         All Residents               ");
+        System.out.println("=====================================");
+        
+        if (residentsMap.isEmpty()) {
+            System.out.println("No residents registered yet.");
+        } else {
+            System.out.printf("%-5s %-20s %-10s %-15s%n", "ID", "Name", "Room", "Balance");
+            System.out.println("-----------------------------------------------------");
+            for (Resident r : residentsMap.values()) {
+                System.out.printf("%-5d %-20s %-10s PHP %-10.2f%n",
+                    r.getId(), r.getName(),
+                    (r.getRoom() != null ? r.getRoom().getRoomNumber() : "None"),
+                    r.getBalance());
+            }
+        }
+        System.out.println("=====================================");
+    }
 
-                    case 3:
-                        if (!(currentUser instanceof DormManager)) {
-                            System.out.println("Access denied. Only Dorm Manager can assign rooms.");
-                            break;
-                        }
-                        System.out.println("\n=====================================");
-                        System.out.println("         Assign Room                 ");
-                        System.out.println("=====================================");
-                        if (residents.isEmpty()) {
-                            System.out.println("Register a resident first.");
-                            break;
-                        }
-                        System.out.print("Enter Resident ID: ");
-                        int sid = sc.nextInt();
-                        if (sid < 1 || sid > residents.size()) {
-                            System.out.println("Invalid Resident ID.");
-                            break;
-                        }
-                        System.out.println("Available Rooms:");
-                        System.out.println("-------------------------------------");
-                        for (int i = 0; i < rooms.size(); i++) {
-                            System.out.printf("%d. %-10s %s%n", i, rooms.get(i).getRoomNumber(),
-                                    (rooms.get(i).isOccupied() ? "(Occupied)" : "(Available)"));
-                        }
-                        System.out.println("-------------------------------------");
-                        System.out.print("Select Room Index: ");
-                        int rid = sc.nextInt();
-                        if (rid < 0 || rid >= rooms.size()) {
-                            System.out.println("Invalid Room Index.");
-                        } else {
-                            ((DormManager) currentUser).assignRoom(residents.get(sid - 1), rooms.get(rid));
-                        }
-                        break;
+    private static void handleAssignRoom() {
+        if (!(currentUser instanceof DormManager)) {
+            System.out.println("Access denied. Only Dorm Manager can assign rooms.");
+            return;
+        }
 
-                    case 4:
-                        if (!(currentUser instanceof DormManager)) {
-                            System.out.println("Access denied. Only Dorm Manager can release rooms.");
-                            break;
-                        }
-                        System.out.println("\n=====================================");
-                        System.out.println("         Release Room                ");
-                        System.out.println("=====================================");
-                        if (residents.isEmpty()) {
-                            System.out.println("No residents registered yet.");
-                            break;
-                        }
-                        System.out.print("Enter Resident ID to release room: ");
-                        int ridx = sc.nextInt();
-                        if (ridx < 1 || ridx > residents.size()) {
-                            System.out.println("Invalid Resident ID.");
-                        } else {
-                            ((DormManager) currentUser).releaseRoom(residents.get(ridx - 1));
-                        }
-                        break;
+        System.out.println("\n=====================================");
+        System.out.println("         Assign Room                 ");
+        System.out.println("=====================================");
+        
+        if (residentsMap.isEmpty()) {
+            System.out.println("Register a resident first.");
+            return;
+        }
 
-                    case 5:
-                        if (!(currentUser instanceof Resident)) {
-                            System.out.println("Access denied. Only Residents can deposit payments.");
-                            break;
-                        }
-                        System.out.println("\n=====================================");
-                        System.out.println("         Deposit Payment             ");
-                        System.out.println("=====================================");
-                        System.out.print("Enter Deposit Amount (PHP): ");
-                        double amount = sc.nextDouble();
-                        ((Resident) currentUser).deposit(amount);
-                        break;
+        System.out.print("Enter Resident ID: ");
+        int residentId = sc.nextInt();
+        sc.nextLine();
 
-                    case 6:
-                        if (!(currentUser instanceof Resident)) {
-                            System.out.println("Access denied. Only Residents can submit requests.");
-                            break;
-                        }
-                        System.out.println("\n=====================================");
-                        System.out.println("     Submit Maintenance Request      ");
-                        System.out.println("=====================================");
-                        sc.nextLine(); // clear buffer
-                        System.out.print("Enter Request Type (Cleaning/Repair): ");
-                        String type = sc.nextLine().trim().toLowerCase();
-                        System.out.print("Enter Description: ");
-                        String desc = sc.nextLine().trim();
-                        if (type.equals("cleaning")) {
-                            requests.add(new CleaningRequest(desc, (Resident) currentUser));
-                        } else if (type.equals("repair")) {
-                            requests.add(new RepairRequest(desc, (Resident) currentUser));
-                        } else {
-                            System.out.println("Invalid request type.");
-                        }
-                        System.out.println("Request submitted!");
-                        break;
+        Resident resident = residentsMap.get(residentId);
+        if (resident == null) {
+            System.out.println("Resident not found.");
+            return;
+        }
 
-                    case 7:
-                        if (!(currentUser instanceof MaintenanceStaff)) {
-                            System.out.println("Access denied. Only Maintenance Staff can process requests.");
-                            break;
-                        }
-                        System.out.println("\n=====================================");
-                        System.out.println("   Process Maintenance Request       ");
-                        System.out.println("=====================================");
-                        if (requests.isEmpty()) {
-                            System.out.println("No requests to process.");
-                            break;
-                        }
-                        System.out.println("Pending Requests:");
-                        System.out.println("-------------------------------------");
-                        for (int i = 0; i < requests.size(); i++) {
-                            Request req = requests.get(i);
-                            if (!req.isProcessed()) {
-                                System.out.printf("%d. %-30s (By: %s)%n", i, req.getDescription(), req.getRequester().name);
-                            }
-                        }
-                        System.out.println("-------------------------------------");
-                        System.out.print("Select Request Index to Process: ");
-                        int reqIdx = sc.nextInt();
-                        if (reqIdx < 0 || reqIdx >= requests.size() || requests.get(reqIdx).isProcessed()) {
-                            System.out.println("Invalid or already processed request.");
-                        } else {
-                            ((MaintenanceStaff) currentUser).processRequest(requests.get(reqIdx));
-                        }
-                        break;
+        System.out.println("\nAvailable Rooms:");
+        System.out.println("-----------------------------------------------------");
+        int index = 0;
+        List<Room> roomList = new ArrayList<>(roomsMap.values());
+        for (Room room : roomList) {
+            System.out.println(index + ". " + room);
+            index++;
+        }
+        System.out.println("-----------------------------------------------------");
+        
+        System.out.print("Select Room Index: ");
+        int roomIndex = sc.nextInt();
+        sc.nextLine();
 
-                    case 8:
-                        if (currentUser == null) {
-                            System.out.println("Please login first to view dashboard.");
-                        } else {
-                            currentUser.viewDashboard();
-                        }
-                        break;
+        if (roomIndex < 0 || roomIndex >= roomList.size()) {
+            System.out.println("Invalid room index.");
+            return;
+        }
 
-                    case 9:
-                        running = false;
-                        System.out.println("\n=====================================");
-                        System.out.println("     Thank you for using DormEase!   ");
-                        System.out.println("             Goodbye!                ");
-                        System.out.println("=====================================");
-                        break;
+        try {
+            ((DormManager) currentUser).assignRoom(resident, roomList.get(roomIndex));
+        } catch (RoomAlreadyAssignedException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
 
-                    default:
-                        System.out.println("Invalid choice. Please try again.");
-                }
+    private static void handleReleaseRoom() {
+        if (!(currentUser instanceof DormManager)) {
+            System.out.println("Access denied. Only Dorm Manager can release rooms.");
+            return;
+        }
 
-            } catch (InputMismatchException e) {
-                System.out.println("Invalid input. Please enter a number where required.");
-                sc.nextLine(); // clear scanner buffer
-            } catch (Exception e) {
-                System.out.println("An unexpected error occurred. Please try again.");
-                sc.nextLine(); // clear scanner buffer
+        System.out.println("\n=====================================");
+        System.out.println("         Release Room                ");
+        System.out.println("=====================================");
+        
+        System.out.print("Enter Resident ID: ");
+        int residentId = sc.nextInt();
+        sc.nextLine();
+
+        Resident resident = residentsMap.get(residentId);
+        if (resident == null) {
+            System.out.println("Resident not found.");
+            return;
+        }
+
+        ((DormManager) currentUser).releaseRoom(resident);
+    }
+
+    private static void handleDepositPayment() {
+        if (!(currentUser instanceof Resident)) {
+            System.out.println("Access denied. Only Residents can deposit payments.");
+            return;
+        }
+
+        System.out.println("\n=====================================");
+        System.out.println("         Deposit Payment             ");
+        System.out.println("=====================================");
+        System.out.print("Enter Deposit Amount (PHP): ");
+        double amount = sc.nextDouble();
+        sc.nextLine();
+
+        try {
+            ((Resident) currentUser).deposit(amount);
+        } catch (InvalidPaymentException e) {
+            System.out.println("Error: " + e.getMessage());
+        }
+    }
+
+    private static void handleSubmitRequest() {
+        if (!(currentUser instanceof Resident)) {
+            System.out.println("Access denied. Only Residents can submit requests.");
+            return;
+        }
+
+        System.out.println("\n=====================================");
+        System.out.println("     Submit Maintenance Request      ");
+        System.out.println("=====================================");
+        System.out.print("Enter Request Type (Cleaning/Repair): ");
+        String type = sc.nextLine().trim().toLowerCase();
+        
+        String desc = getValidStringInput("Enter Description: ");
+
+        if (type.equals("cleaning")) {
+            requests.add(new CleaningRequest(desc, (Resident) currentUser));
+            System.out.println("Cleaning request submitted!");
+        } else if (type.equals("repair")) {
+            requests.add(new RepairRequest(desc, (Resident) currentUser));
+            System.out.println("Repair request submitted!");
+        } else {
+            System.out.println("Invalid request type.");
+        }
+    }
+
+    private static void handleProcessRequest() {
+        if (!(currentUser instanceof MaintenanceStaff)) {
+            System.out.println("Access denied. Only Maintenance Staff can process requests.");
+            return;
+        }
+
+        System.out.println("\n=====================================");
+        System.out.println("   Process Maintenance Request       ");
+        System.out.println("=====================================");
+        
+        if (requests.isEmpty()) {
+            System.out.println("No requests to process.");
+            return;
+        }
+
+        System.out.println("Pending Requests:");
+        System.out.println("-----------------------------------------------------");
+        for (int i = 0; i < requests.size(); i++) {
+            Request req = requests.get(i);
+            System.out.printf("%d. [%s] %-30s (By: %s)%n", 
+                i, req.getStatus(), req.getDescription(), req.getRequester().getName());
+        }
+        System.out.println("-----------------------------------------------------");
+        
+        System.out.print("Select Request Index to Process: ");
+        int reqIdx = sc.nextInt();
+        sc.nextLine();
+
+        if (reqIdx < 0 || reqIdx >= requests.size()) {
+            System.out.println("Invalid request index.");
+        } else {
+            ((MaintenanceStaff) currentUser).processRequest(requests.get(reqIdx));
+        }
+    }
+
+    private static void handleViewDashboard() {
+        if (currentUser == null) {
+            System.out.println("Please login first to view dashboard.");
+        } else {
+            currentUser.viewDashboard();
+        }
+    }
+
+    private static void handleViewPaymentHistory() {
+        if (!(currentUser instanceof Resident)) {
+            System.out.println("Access denied. Only Residents can view payment history.");
+            return;
+        }
+        ((Resident) currentUser).viewPaymentHistory();
+    }
+
+    private static void handleSearchResident() {
+        System.out.println("\n=====================================");
+        System.out.println("         Search Resident             ");
+        System.out.println("=====================================");
+        String keyword = getValidStringInput("Enter search keyword (name): ");
+        
+        ArrayList<Resident> results = searchResidents(keyword);
+        
+        if (results.isEmpty()) {
+            System.out.println("No residents found matching '" + keyword + "'");
+        } else {
+            System.out.println("Search Results:");
+            System.out.println("-----------------------------------------------------");
+            for (Resident r : results) {
+                System.out.printf("ID: %-5d | Name: %-20s | Room: %s%n",
+                    r.getId(), r.getName(),
+                    (r.getRoom() != null ? r.getRoom().getRoomNumber() : "None"));
+            }
+        }
+        System.out.println("=====================================");
+    }
+
+    private static void handleViewRoomStatistics() {
+        System.out.println("\n=====================================");
+        System.out.println("       Room Statistics               ");
+        System.out.println("=====================================");
+        
+        int totalRooms = roomsMap.size();
+        int occupiedRooms = 0;
+        double totalRevenue = 0;
+
+        for (Room room : roomsMap.values()) {
+            if (room.isOccupied()) {
+                occupiedRooms++;
+                totalRevenue += room.getMonthlyRate();
             }
         }
 
-        sc.close();
+        System.out.println("Total Rooms: " + totalRooms);
+        System.out.println("Occupied Rooms: " + occupiedRooms);
+        System.out.println("Available Rooms: " + (totalRooms - occupiedRooms));
+        System.out.println("Occupancy Rate: " + String.format("%.2f%%", 
+            (occupiedRooms * 100.0 / totalRooms)));
+        System.out.println("Monthly Revenue: PHP " + String.format("%.2f", totalRevenue));
+        System.out.println("Total Residents: " + residentsMap.size());
+        System.out.println("=====================================");
+    }
+
+    private static void handleViewRequestHistory() {
+        System.out.println("\n=====================================");
+        System.out.println("       Request History               ");
+        System.out.println("=====================================");
+        
+        if (requests.isEmpty()) {
+            System.out.println("No requests in history.");
+            return;
+        }
+
+        System.out.print("Enter request index to view details (or -1 to see all): ");
+        int index = sc.nextInt();
+        sc.nextLine();
+
+        if (index == -1) {
+            for (int i = 0; i < requests.size(); i++) {
+                System.out.println("\n--- Request " + i + " ---");
+                requests.get(i).viewRequestHistory();
+            }
+        } else if (index >= 0 && index < requests.size()) {
+            requests.get(index).viewRequestHistory();
+        } else {
+            System.out.println("Invalid request index.");
+        }
+        System.out.println("=====================================");
+    }
+
+    private static void handleSaveData() {
+        DataManager.saveData(residentsMap, roomsMap, requests);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void handleLoadData() {
+        Object[] data = DataManager.loadData();
+        if (data != null) {
+            residentsMap = (HashMap<Integer, Resident>) data[0];
+            roomsMap = (HashMap<String, Room>) data[1];
+            requests = (ArrayList<Request>) data[2];
+            
+            // Update nextResidentId
+            if (!residentsMap.isEmpty()) {
+                nextResidentId = Collections.max(residentsMap.keySet()) + 1;
+            }
+        }
+    }
+
+    private static void displayGoodbye() {
+        System.out.println("\n=====================================");
+        System.out.println("     Thank you for using DormEase!   ");
+        System.out.println("             Goodbye!                ");
+        System.out.println("=====================================");
+    }
+
+    // ===== Helper Methods =====
+    private static String getValidStringInput(String prompt) {
+        String input;
+        do {
+            System.out.print(prompt);
+            input = sc.nextLine().trim();
+            if (input.isEmpty()) {
+                System.out.println("Input cannot be empty. Please try again.");
+            }
+        } while (input.isEmpty());
+        return input;
+    }
+
+    private static ArrayList<Resident> searchResidents(String keyword) {
+        ArrayList<Resident> results = new ArrayList<>();
+        for (Resident r : residentsMap.values()) {
+            if (r.getName().toLowerCase().contains(keyword.toLowerCase())) {
+                results.add(r);
+            }
+        }
+        return results;
     }
 }
