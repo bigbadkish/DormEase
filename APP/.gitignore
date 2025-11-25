@@ -1,0 +1,15 @@
+# Java
+*.class
+*.jar
+
+# Data files
+dormease_data.dat
+
+# IDEs and OS
+*.idea/
+*.vscode/
+*.project
+*.classpath
+*.settings/
+*.DS_Store
+Thumbs.db
