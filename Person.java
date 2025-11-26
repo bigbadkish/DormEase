@@ -1,8 +1,5 @@
-package DormEase;
-// Person.java
-import java.io.Serializable;
-
-public abstract class Person implements Serializable {
+// Person.java - Abstract class for Abstraction and Inheritance
+public abstract class Person {
     protected String name;
     protected int id;
 
@@ -11,13 +8,9 @@ public abstract class Person implements Serializable {
         this.id = id;
     }
 
+    // Abstract method for Polymorphism
     public abstract void viewDashboard();
     
-    public String getName() { 
-        return name; 
-    }
-    
-    public int getId() { 
-        return id; 
-    }
+    public String getName() { return name; }
+    public int getId() { return id; }
 }

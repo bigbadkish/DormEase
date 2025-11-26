@@ -1,63 +1,34 @@
-package DormEase;
-// Resident.java
-import java.util.ArrayList;
-
+// Resident.java - Demonstrates Inheritance, Polymorphism, and Encapsulation
 public class Resident extends Person {
-    private Room room;
+    private String room;  // Encapsulation: private field
     private double balance;
-    private ArrayList<PaymentTransaction> paymentHistory;
 
     public Resident(String name, int id) {
         super(name, id);
         this.balance = 0;
-        this.paymentHistory = new ArrayList<>();
+        this.room = "None";
     }
 
-    public void deposit(double amount) throws InvalidPaymentException {
-        if (amount <= 0) {
-            throw new InvalidPaymentException("Amount must be positive.");
-        }
-        balance += amount;
-        paymentHistory.add(new PaymentTransaction(amount, "Deposit"));
-        System.out.println("Added PHP " + String.format("%.2f", amount) + " to " + name + "'s balance.");
-    }
-
-    public void viewPaymentHistory() {
-        System.out.println("\n=====================================");
-        System.out.println("       Payment History - " + name);
-        System.out.println("=====================================");
-        if (paymentHistory.isEmpty()) {
-            System.out.println("No payment history available.");
+    public void deposit(double amount) {
+        if (amount > 0) {
+            balance += amount;
+            System.out.println("✓ Added PHP " + String.format("%.2f", amount) + " to balance.");
         } else {
-            for (int i = 0; i < paymentHistory.size(); i++) {
-                System.out.println((i + 1) + ". " + paymentHistory.get(i));
-            }
+            System.out.println("✗ Amount must be positive.");
         }
-        System.out.println("Current Balance: PHP " + String.format("%.2f", balance));
-        System.out.println("=====================================");
     }
 
-    public Room getRoom() { 
-        return room; 
-    }
-    
-    public void setRoom(Room room) { 
-        this.room = room; 
-    }
-    
-    public double getBalance() { 
-        return balance; 
-    }
+    // Encapsulation: getters and setters
+    public String getRoom() { return room; }
+    public void setRoom(String room) { this.room = room; }
+    public double getBalance() { return balance; }
 
     @Override
     public void viewDashboard() {
-        System.out.println("=====================================");
-        System.out.println("         Resident Dashboard          ");
-        System.out.println("=====================================");
+        System.out.println("\n========== RESIDENT DASHBOARD ==========");
         System.out.println("Name: " + name + " | ID: " + id);
-        System.out.println("Room: " + (room != null ? room.getRoomNumber() + " (" + room.getType() + ")" : "None"));
+        System.out.println("Room: " + room);
         System.out.println("Balance: PHP " + String.format("%.2f", balance));
-        System.out.println("Total Payments: " + paymentHistory.size());
-        System.out.println("=====================================");
+        System.out.println("========================================\n");
     }
 }
